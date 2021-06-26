@@ -27,12 +27,20 @@ export const throttle = (fn, wait = 600, IsDefaultThisArgs = true) => {
     };
 }
 
+/**
+ * @desc 自动实现自适应
+ * @param { dom } el dom元素
+ * @param { Function } cb 回调函数
+ * @param { Number } time 等待时间
+ * @returns ResizeObserver unobserve 的方法
+ */
+
 export function resizeObserver (el, cb = () => { }, time = 720) {
     if (!el) return;
     const resizeObserver = new ResizeObserver(throttle(cb, time));
-    // resizeObserver?.observe(el);
-    resizeObserver ? resizeObserver.observe(el) : '';
-    return resizeObserver;
+    resizeObserver?.observe(el);
+
+    return () => resizeObserver.unobserve(el);
 }
 
 export class interval {
@@ -43,20 +51,26 @@ export class interval {
      * time 1000时间
      * isAhead 是否先行
      */
-    static #options = { time: 1000, isAhead: true };
-    static _interval (fn, { time, isAhead } = this.#options, id) {
+    static #options = { time: 1000, isAhead: true, backCallBack: true };
+    static _interval (fn, { time } = {}, id) {
+
         clearTimeout(this.#timeIds.get(id));
-        isAhead && fn();
         this.#timeIds.set(id, setTimeout(() => {
-            !isAhead && fn();
-            this._interval(fn, { time, isAhead }, id)
+            fn();
+            this._interval(fn, { time }, id);
         }, time));
     }
-    static setInterval (fn, options) {
+    static setInterval (fn, _options) {
+        let options = { ...this.#options, ..._options };
+
         this.#id ++;
-        if (typeof fn !== 'function') throw new Error(`${fn} is not a function`)
-        this.#timeIds.set(this.#id, this._interval(fn, options, this.#id));
-        return this.#id;
+        if (typeof fn !== 'function') throw new Error(`${fn} is not a function`);
+
+        options.isAhead && fn();
+
+        this._interval(fn, options, this.#id);
+
+        return options.backCallBack ? () => this.clearInterval(this.#id) : this.#id;
     }
     static clearInterval (id) {
         clearTimeout(this.#timeIds.get(id));
@@ -94,4 +108,12 @@ export function getElementAuthId (url, type = "BUTTON") {
     }
 
     return findId(Authority, url);
+}
+
+
+/**
+ * 顺序调换
+ */
+export function changeOrder (arr, newIndex, oldIndex) {
+    arr.splice(newIndex, 0, arr.splice(oldIndex, 1));
 }
